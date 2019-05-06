@@ -8943,7 +8943,7 @@ test_read_team_master_invalid (gconstpointer user_data)
 	_connection_from_file_fail (PATH_NAME, NULL, TYPE_ETHERNET, &error);
 
 	g_assert_error (error, NM_CONNECTION_ERROR, NM_CONNECTION_ERROR_INVALID_PROPERTY);
-	g_assert (strstr (error->message, "JSON"));
+	g_assert (strstr (error->message, _("invalid json")));
 }
 
 static void

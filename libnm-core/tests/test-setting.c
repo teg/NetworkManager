@@ -1361,9 +1361,37 @@ test_team_port_full_config (void)
 static void
 _check_team_setting (NMSetting *setting)
 {
+	gs_unref_object NMSetting *setting2 = NULL;
+	gs_unref_object NMSetting *setting_clone = NULL;
 	gboolean is_port = NM_IS_SETTING_TEAM_PORT (setting);
 
+	if (!is_port) {
+		if (nm_setting_team_get_runner (NM_SETTING_TEAM (setting)) == NULL) {
+			/* such a setting is invalid. We must first coerce it so that it becomes
+			 * valid. */
+			setting_clone = nm_setting_duplicate (setting);
+			setting = setting_clone;
+			g_object_set (setting,
+			              NM_SETTING_TEAM_RUNNER,
+			              NM_SETTING_TEAM_RUNNER_DEFAULT,
+			              NULL);
+		}
+	}
+
 	g_assert (NM_IS_SETTING_TEAM (setting) || is_port);
+
+	setting2 = g_object_new (G_OBJECT_TYPE (setting),
+	                           is_port
+	                         ? NM_SETTING_TEAM_PORT_CONFIG
+	                         : NM_SETTING_TEAM_CONFIG,
+	                           is_port
+	                         ? nm_setting_team_port_get_config (NM_SETTING_TEAM_PORT (setting))
+	                         : nm_setting_team_get_config (NM_SETTING_TEAM (setting)),
+	                         NULL);
+
+	nmtst_assert_setting_is_equal (setting, setting2, NM_SETTING_COMPARE_FLAG_EXACT);
+
+	nmtst_assert_setting_dbus_roundtrip (setting);
 }
 
 static void
@@ -1398,19 +1426,34 @@ test_team_setting (void)
 
 	_check_team_setting (setting);
 	g_assert_cmpint (nm_setting_team_get_num_link_watchers (NM_SETTING_TEAM (setting)), ==, 1);
-	g_assert_cmpstr (nm_setting_team_get_config (NM_SETTING_TEAM (setting)), ==, "{\"link_watch\": {\"name\": \"ethtool\"}, \"runner\": {\"sys_prio\": 10}}");
+	g_assert_cmpstr (nm_setting_team_get_config (NM_SETTING_TEAM (setting)), ==, "{ \"runner\": { \"sys_prio\": 10 }, \"link_watch\": { \"name\": \"ethtool\"} }");
 
 	nm_setting_team_remove_link_watcher (NM_SETTING_TEAM (setting), 0);
 	_check_team_setting (setting);
-	g_assert_cmpstr (nm_setting_team_get_config (NM_SETTING_TEAM (setting)), ==, "{\"link_watch\": {\"name\": \"ethtool\"}, \"runner\": {\"sys_prio\": 10}}");
+	g_assert_cmpstr (nm_setting_team_get_config (NM_SETTING_TEAM (setting)), ==, "{ \"runner\": { \"sys_prio\": 10 } }");
 
 	nm_setting_team_add_link_watcher (NM_SETTING_TEAM (setting), watcher1);
 	_check_team_setting (setting);
-	g_assert_cmpstr (nm_setting_team_get_config (NM_SETTING_TEAM (setting)), ==, "{\"link_watch\": {\"name\": \"ethtool\"}, \"runner\": {\"sys_prio\": 10}}");
+	g_assert_cmpstr (nm_setting_team_get_config (NM_SETTING_TEAM (setting)), ==, "{ \"runner\": { \"sys_prio\": 10 }, \"link_watch\": { \"name\": \"nsna_ping\", \"target_host\": \"bbb\", \"init_wait\": 1, \"interval\": 3, \"missed_max\": 4} }");
 
 	nm_setting_team_add_link_watcher (NM_SETTING_TEAM (setting), watcher2);
 	_check_team_setting (setting);
-	g_assert_cmpstr (nm_setting_team_get_config (NM_SETTING_TEAM (setting)), ==, "{\"link_watch\": {\"name\": \"ethtool\"}, \"runner\": {\"sys_prio\": 10}}");
+	g_assert_cmpstr (nm_setting_team_get_config (NM_SETTING_TEAM (setting)), ==, "{ \"runner\": { \"sys_prio\": 10 }, \"link_watch\": [ { \"name\": \"nsna_ping\", \"target_host\": \"bbb\", \"init_wait\": 1, \"interval\": 3, \"missed_max\": 4}, { \"name\": \"arp_ping\", \"target_host\": \"ccc\", \"source_host\": \"ddd\", \"init_wait\": 1, \"interval\": 3, \"missed_max\": 4} ] }");
+
+	nm_setting_team_remove_link_watcher (NM_SETTING_TEAM (setting), 0);
+	nm_setting_team_remove_link_watcher (NM_SETTING_TEAM (setting), 0);
+	g_object_set (setting,
+	              NM_SETTING_TEAM_RUNNER_TX_BALANCER_INTERVAL,
+	              (int) 5,
+	              NULL);
+	g_assert_cmpstr (nm_setting_team_get_config (NM_SETTING_TEAM (setting)), ==, "{ \"runner\": { \"tx_balancer\": { \"balancing_interval\": 5 }, \"sys_prio\": 10 } }");
+
+	g_object_set (setting,
+	              NM_SETTING_TEAM_RUNNER,
+	              NULL,
+	              NULL);
+	_check_team_setting (setting);
+	g_assert_cmpstr (nm_setting_team_get_config (NM_SETTING_TEAM (setting)), ==, "{ \"runner\": { \"tx_balancer\": { \"balancing_interval\": 5 }, \"sys_prio\": 10 } }");
 }
 
 /*****************************************************************************/

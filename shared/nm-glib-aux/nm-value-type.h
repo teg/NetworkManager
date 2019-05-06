@@ -126,6 +126,55 @@ nm_value_type_copy (NMValueType value_type,
 	nm_assert_not_reached ();
 }
 
+static inline void
+nm_value_type_get_from_variant (NMValueType value_type,
+                                gpointer dst,
+                                GVariant *variant,
+                                gboolean clone)
+{
+	switch (value_type) {
+	case NM_VALUE_TYPE_BOOL:   *((bool   *) dst) = g_variant_get_boolean (variant); return;
+	case NM_VALUE_TYPE_INT32:  *((gint32 *) dst) = g_variant_get_int32 (variant);   return;
+	case NM_VALUE_TYPE_STRING:
+		if (clone) {
+			g_free (*((char **) dst));
+			*((char **) dst) = g_variant_dup_string (variant, NULL);
+		} else {
+			/* we don't clone the string, nor free the previous value. */
+			*((const char **) dst) = g_variant_get_string (variant, NULL);
+		}
+		return;
+
+	case NM_VALUE_TYPE_INT:
+		/* "int" also does not have a define variant type, because it's not
+		 * clear how many bits we would need. */
+
+		/* fall-through */
+	case NM_VALUE_TYPE_UNSPEC:
+		break;
+	}
+	nm_assert_not_reached ();
+}
+
+static inline const GVariantType *
+nm_value_type_get_variant_type (NMValueType value_type)
+{
+	switch (value_type) {
+	case NM_VALUE_TYPE_BOOL:   return G_VARIANT_TYPE_BOOLEAN;
+	case NM_VALUE_TYPE_INT32:  return G_VARIANT_TYPE_INT32;
+	case NM_VALUE_TYPE_STRING: return G_VARIANT_TYPE_STRING;
+
+	case NM_VALUE_TYPE_INT:
+		/* "int" also does not have a define variant type, because it's not
+		 * clear how many bits we would need. */
+
+		/* fall-through */
+	case NM_VALUE_TYPE_UNSPEC:
+		break;
+	}
+	nm_assert_not_reached ();
+}
+
 /*****************************************************************************/
 
 #endif /* NM_VALUE_TYPE_DEFINE_FUNCTIONS */

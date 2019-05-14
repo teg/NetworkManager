@@ -26,6 +26,7 @@ libnm_systemd_core = static_library(
     'src/shared/dns-domain.c',
     'nm-sd.c',
     'nm-sd-utils-core.c',
+    'nm-sd-utils-dhcp.c',
   ),
   include_directories: [
     src_inc,

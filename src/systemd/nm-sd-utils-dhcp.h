@@ -24,8 +24,8 @@
 
 typedef struct {
 	uint8_t code;
+	uint8_t data_len;
 	void *data;
-	gsize data_len;
 } nm_sd_dhcp_option;
 
 int

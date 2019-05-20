@@ -536,18 +536,6 @@ nm_settings_get_unmanaged_specs (NMSettings *self)
 	return priv->unmanaged_specs;
 }
 
-static gboolean
-find_spec (GSList *spec_list, const char *spec)
-{
-	GSList *iter;
-
-	for (iter = spec_list; iter; iter = g_slist_next (iter)) {
-		if (!strcmp ((const char *) iter->data, spec))
-			return TRUE;
-	}
-	return FALSE;
-}
-
 static void
 update_specs (NMSettings *self, GSList **specs_ptr,
               GSList * (*get_specs_func) (NMSettingsPlugin *))
@@ -555,21 +543,22 @@ update_specs (NMSettings *self, GSList **specs_ptr,
 	NMSettingsPrivate *priv = NM_SETTINGS_GET_PRIVATE (self);
 	GSList *iter;
 
-	g_slist_free_full (*specs_ptr, g_free);
-	*specs_ptr = NULL;
+	g_slist_free_full (g_steal_pointer (specs_ptr), g_free);
 
 	for (iter = priv->plugins; iter; iter = g_slist_next (iter)) {
-		GSList *specs, *specs_iter;
+		GSList *specs;
 
-		specs = get_specs_func (NM_SETTINGS_PLUGIN (iter->data));
-		for (specs_iter = specs; specs_iter; specs_iter = specs_iter->next) {
-			if (!find_spec (*specs_ptr, (const char *) specs_iter->data)) {
-				*specs_ptr = g_slist_prepend (*specs_ptr, specs_iter->data);
-			} else
-				g_free (specs_iter->data);
+		specs = get_specs_func (iter->data);
+		while (specs) {
+			specs = g_slist_remove_link (specs, specs);
+			if (nm_utils_g_slist_find_str (*specs_ptr, specs->data)) {
+				g_free (specs->data);
+				g_slist_free_1 (specs);
+				continue;
+			}
+			specs->next = *specs_ptr;
+			*specs_ptr = specs;
 		}
-
-		g_slist_free (specs);
 	}
 }
 

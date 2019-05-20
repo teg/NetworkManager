@@ -57,7 +57,9 @@ typedef struct {
 	 */
 	GHashTable *eni_ifaces;
 
-	bool ifupdown_managed;
+	bool ifupdown_managed:1;
+
+	bool initialized:1;
 } SettingsPluginIfupdownPrivate;
 
 struct _SettingsPluginIfupdown {
@@ -90,6 +92,10 @@ NM_DEFINE_SINGLETON_GETTER (SettingsPluginIfupdown, settings_plugin_ifupdown_get
 
 /*****************************************************************************/
 
+static void initialize (SettingsPluginIfupdown *self);
+
+/*****************************************************************************/
+
 /* Returns the plugins currently known list of connections.  The returned
  * list is freed by the system settings service.
  */
@@ -101,6 +107,9 @@ get_connections (NMSettingsPlugin *plugin)
 	GSList *list = NULL;
 	GHashTableIter iter;
 	void *value;
+
+	if (G_UNLIKELY (!priv->initialized))
+		initialize (self);
 
 	if (!priv->ifupdown_managed) {
 		_LOGD ("get_connections: not connections due to managed=false");
@@ -131,6 +140,9 @@ get_unmanaged_specs (NMSettingsPlugin *plugin)
 	GHashTableIter iter;
 	const char *iface;
 
+	if (G_UNLIKELY (!priv->initialized))
+		initialize (self);
+
 	if (priv->ifupdown_managed)
 		return NULL;
 
@@ -146,9 +158,8 @@ get_unmanaged_specs (NMSettingsPlugin *plugin)
 /*****************************************************************************/
 
 static void
-initialize (NMSettingsPlugin *plugin)
+initialize (SettingsPluginIfupdown *self)
 {
-	SettingsPluginIfupdown *self = SETTINGS_PLUGIN_IFUPDOWN (plugin);
 	SettingsPluginIfupdownPrivate *priv = SETTINGS_PLUGIN_IFUPDOWN_GET_PRIVATE (self);
 	gs_unref_hashtable GHashTable *auto_ifaces = NULL;
 	nm_auto_ifparser if_parser *parser = NULL;
@@ -156,6 +167,9 @@ initialize (NMSettingsPlugin *plugin)
 	GHashTableIter con_iter;
 	const char *block_name;
 	NMIfupdownConnection *conn;
+
+	nm_assert (!priv->initialized);
+	priv->initialized = TRUE;
 
 	parser = ifparser_parse (ENI_INTERFACES_FILE, 0);
 
@@ -318,7 +332,6 @@ settings_plugin_ifupdown_class_init (SettingsPluginIfupdownClass *klass)
 
 	object_class->dispose = dispose;
 
-	plugin_class->initialize          = initialize;
 	plugin_class->get_connections     = get_connections;
 	plugin_class->get_unmanaged_specs = get_unmanaged_specs;
 }

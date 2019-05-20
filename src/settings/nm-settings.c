@@ -613,8 +613,6 @@ add_plugin (NMSettings *self,
 
 	priv->plugins = g_slist_append (priv->plugins, g_object_ref (plugin));
 
-	nm_settings_plugin_initialize (plugin);
-
 	_LOGI ("Loaded settings plugin: %s (%s%s%s)",
 	       pname,
 	       NM_PRINT_FMT_QUOTED (path, "\"", path, "\"", "internal"));
@@ -1924,6 +1922,7 @@ nm_settings_start (NMSettings *self, GError **error)
 		return FALSE;
 
 	load_connections (self);
+
 	check_startup_complete (self);
 
 	priv->hostname_manager = g_object_ref (nm_hostname_manager_get ());

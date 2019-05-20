@@ -2667,6 +2667,22 @@ _nm_utils_strv_cmp_n (const char *const*strv1,
 
 /*****************************************************************************/
 
+GSList *
+nm_utils_g_slist_find_str (const GSList *list,
+                           const char *needle)
+{
+	nm_assert (needle);
+
+	for (; list; list = list->next) {
+		nm_assert (list->data);
+		if (nm_streq (list->data, needle))
+			return (GSList *) list;
+	}
+	return NULL;
+}
+
+/*****************************************************************************/
+
 gpointer
 _nm_utils_user_data_pack (int nargs, gconstpointer *args)
 {

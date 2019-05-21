@@ -4715,11 +4715,14 @@ nm_utils_iface_valid_name (const char *name)
 
 /**
  * nm_utils_is_uuid:
- * @str: a string that might be a UUID
+ * @str: (allow-none): a string that might be a UUID
  *
  * Checks if @str is a UUID
  *
  * Returns: %TRUE if @str is a UUID, %FALSE if not
+ *
+ * In older versions, nm_utils_is_uuid() did not accept %NULL as @str
+ * argument. Don't pass %NULL if you run against older versions of libnm.
  */
 gboolean
 nm_utils_is_uuid (const char *str)
@@ -4727,7 +4730,8 @@ nm_utils_is_uuid (const char *str)
 	const char *p = str;
 	int num_dashes = 0;
 
-	g_return_val_if_fail (str, FALSE);
+	if (!p)
+		return FALSE;
 
 	while (*p) {
 		if (*p == '-')

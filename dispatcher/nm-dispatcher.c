@@ -37,6 +37,7 @@
 #include "nmdbus-dispatcher.h"
 
 static struct {
+	GDBusConnection *dbus_connection;
 	GMainLoop *loop;
 	gboolean debug;
 	gboolean persist;
@@ -990,7 +991,6 @@ int
 main (int argc, char **argv)
 {
 	gs_free_error GError *error = NULL;
-	GDBusConnection *bus;
 	Handler *handler = NULL;
 	guint signal_id_term = 0;
 	guint signal_id_int = 0;
@@ -1017,8 +1017,8 @@ main (int argc, char **argv)
 
 	gl.loop = g_main_loop_new (NULL, FALSE);
 
-	bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
-	if (!bus) {
+	gl.dbus_connection = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
+	if (!gl.dbus_connection) {
 		_LOG_X_W ("Could not get the system bus (%s).  Make sure the message bus daemon is running!",
 		          error->message);
 		gl.exit_with_failure = TRUE;
@@ -1027,7 +1027,7 @@ main (int argc, char **argv)
 
 	handler = g_object_new (HANDLER_TYPE, NULL);
 	g_dbus_interface_skeleton_export (G_DBUS_INTERFACE_SKELETON (handler->dbus_dispatcher),
-	                                  bus,
+	                                  gl.dbus_connection,
 	                                  NM_DISPATCHER_DBUS_PATH,
 	                                  &error);
 	if (error) {
@@ -1036,13 +1036,12 @@ main (int argc, char **argv)
 		goto done;
 	}
 
-	g_bus_own_name_on_connection (bus,
+	g_bus_own_name_on_connection (gl.dbus_connection,
 	                              NM_DISPATCHER_DBUS_SERVICE,
 	                              G_BUS_NAME_OWNER_FLAGS_NONE,
 	                              on_name_acquired,
 	                              on_name_lost,
 	                              NULL, NULL);
-	g_object_unref (bus);
 
 	quit_timeout_reschedule ();
 
@@ -1063,10 +1062,10 @@ done:
 	nm_clear_g_source (&signal_id_int);
 	nm_clear_g_source (&gl.quit_id);
 	g_clear_pointer (&gl.loop, g_main_loop_unref);
+	g_clear_object (&gl.dbus_connection);
 
 	if (!gl.debug)
 		logging_shutdown ();
 
 	return gl.exit_with_failure ? 1 : 0;
 }
-
